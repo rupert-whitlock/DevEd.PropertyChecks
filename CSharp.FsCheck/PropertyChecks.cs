@@ -63,6 +63,61 @@ namespace CSharp.FsCheck
             return numberGen;
         }
 
+        public Gen<GeneratedValidNumber> InvalidPhoneNumberGenerator()
+        {
+            var nullableGen =
+                from i in Any.IntBetween(10000, 999999999)
+                select new Nullable<int>(i);
+            var numberGen =
+                from country in Any.IntBetween(1000, 999999999)
+                from identification in Any.GeneratorIn<int?>(nullableGen, Any.Value<int?>(null))
+                from subscriber in Any.IntBetween(10000000, 999999999)
+                select new GeneratedValidNumber(country, identification, subscriber);
+            return numberGen;
+        }
+
+        [Test]
+        public void SubscriptionNumberLessThan15Characters()
+        {
+            Spec.ForAny(
+                (DontSize<UInt32> subscriptionNumber) =>
+                {
+                    var sn = subscriptionNumber.Item;
+                    PhoneNumber ph;
+                    var ec = PhoneNumber.TryParse("+1 " + sn.ToString(), out ph);
+                    return ph.SubscriberNumber.ToString().Length <= 14;
+                })
+                .QuickCheckThrowOnFailure();
+        }
+
+        [Test]
+        public void hjghg()
+        {
+            Spec.ForAny(
+                (DontSize<UInt32> subscriptionNumber) =>
+                {
+                    var sn = subscriptionNumber.Item;
+                    PhoneNumber ph;
+                    var ec = PhoneNumber.TryParse("+12 " + sn.ToString(), out ph);
+                    return ph.SubscriberNumber.ToString().Length <= 13;
+                })
+                .QuickCheckThrowOnFailure();
+        }
+
+
+        [Test]
+        public void IdentificationLessThan4digits()
+        {
+            Spec.ForAny(
+                (DontSize<UInt16> identificationCode) =>
+                {
+                    var ic = identificationCode.Item;
+                    PhoneNumber ph;
+                    var ec = PhoneNumber.TryParse("+1 " + ic.ToString() + " 123456", out ph);
+                    return ph.IdentificationCode < 10000;
+                })
+                .QuickCheckThrowOnFailure();
+        }
 
         [Test]
         public void CountryCodeLessThan4digits()
@@ -88,5 +143,38 @@ namespace CSharp.FsCheck
                 })
                 .QuickCheckThrowOnFailure();
         }
+
+        [Test]
+        public void VValidNumbersAreRecognized()
+        {
+            Spec.For(ValidPhoneNumberGenerator(),
+                (GeneratedValidNumber n) =>
+                {
+                    var cc = n.Country.ToString().Length;
+                    var ic = n.Identification.ToString().Length;
+                    var expectedLength = (15 - cc - ic);
+
+                    PhoneNumber ph;
+                    PhoneNumber.TryParse(n.InputString, out ph);
+
+                    return ph.SubscriberNumber.ToString().Length <= expectedLength;
+                })
+                .QuickCheckThrowOnFailure();
+        }
+
+
+
+        [Test]
+        public void unhappyVValidNumbersAreRecognized()
+        {
+            Spec.For(InvalidPhoneNumberGenerator(),
+                (n) =>
+                {
+                    PhoneNumber ph;
+                    return !PhoneNumber.TryParse(n.InputString, out ph);
+                })
+                .QuickCheckThrowOnFailure();
+        }
+    
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
 
 namespace CSharp.FsCheck
@@ -21,15 +22,19 @@ namespace CSharp.FsCheck
 
         public static bool TryParse(string number, out PhoneNumber ph)
         {
-            var reg = new Regex(@"\+(?<cc>\d+) (?<ic>\d+) (?<sn>\d+)");
-            if (!reg.IsMatch(number))
+            var reg = new Regex(@"(^\+(?<cc>\d{1,3})\s(?<ic>\d{0,4})\s?(?<sn>\d{1,14})$){1,16}");
+            if (!reg.IsMatch(number))// || number.Replace(" ", "").Length > 16)
             {
-                ph = null;
+                ph = new PhoneNumber(0, 0, 0);
                 return false;
             }
             var match = reg.Match(number);
             var countryCode = int.Parse(match.Groups["cc"].Value);
-            var identificationCode = int.Parse(match.Groups["ic"].Value);
+            var identificationCode = 0;
+            if (!String.IsNullOrWhiteSpace(match.Groups["ic"].Value))
+            {
+                identificationCode = int.Parse(match.Groups["ic"].Value);
+            }
             var subscriberNumber = int.Parse(match.Groups["sn"].Value);
             ph = new PhoneNumber(countryCode, identificationCode, subscriberNumber);
             return true;
